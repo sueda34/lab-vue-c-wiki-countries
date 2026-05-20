@@ -22,10 +22,10 @@
         <tr>
           <td class="fw-bold">Borders</td>
           <td>
-            <ul v-if="country.borders && country.borders.length" class="list-unstyled mb-0">
-              <li v-for="border in country.borders" :key="border" class="mb-1">
-                <router-link :to="'/' + border" class="text-decoration-none">
-                  {{ border }}
+            <ul v-if="borderCountries.length" class="list-unstyled mb-0">
+              <li v-for="border in borderCountries" :key="border.code" class="mb-1">
+                <router-link :to="'/' + border.code" class="text-decoration-none">
+                  {{ border.name }}
                 </router-link>
               </li>
             </ul>
@@ -37,16 +37,36 @@
   </div>
   
   <div v-else class="text-center p-5 text-muted">
-    <p>Wähle ein Land aus, um Details anzuzeigen...</p>
+    <p>Select a country to see the details...</p>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 const route = useRoute();
 const country = ref(null);
+const loadedCountries = ref([]);
+
+const loadLocalCountries = async () => {
+  if (loadedCountries.value.length) {
+    return loadedCountries.value;
+  }
+
+  try {
+    const response = await fetch('/countries.json');
+    if (!response.ok) {
+      throw new Error(`Local countries.json returned ${response.status}`);
+    }
+    loadedCountries.value = await response.json();
+  } catch (error) {
+    console.warn('Lokale Länderdatei konnte nicht geladen werden:', error);
+    loadedCountries.value = [];
+  }
+
+  return loadedCountries.value;
+};
 
 const fetchCountryDetails = async () => {
   const countryCode = route.params.alpha3Code;
@@ -56,20 +76,37 @@ const fetchCountryDetails = async () => {
   }
 
   try {
-    const response = await fetch('/countries.json');
-    const data = await response.json();
-    country.value = Array.isArray(data)
-      ? data.find((item) => item.alpha3Code === countryCode) || null
-      : null;
+    const response = await fetch(`https://ih-countries-api.herokuapp.com/countries/${countryCode}`);
+    if (!response.ok) {
+      throw new Error(`Live API returned ${response.status}`);
+    }
+    country.value = await response.json();
   } catch (error) {
-    console.error('Fehler beim Laden der Länder-Details:', error);
+    console.warn('Live API failed, loading local data instead:', error);
+    const countries = await loadLocalCountries();
+    country.value = countries.find((item) => item.alpha3Code === countryCode) || null;
   }
 };
 
+const borderCountries = computed(() => {
+  if (!country.value?.borders?.length) {
+    return [];
+  }
+
+  return loadedCountries.value.length
+    ? country.value.borders.map((code) => {
+        const borderCountry = loadedCountries.value.find((item) => item.alpha3Code === code);
+        return {
+          code,
+          name: borderCountry?.name?.common || code,
+        };
+      })
+    : country.value.borders.map((code) => ({ code, name: code }));
+});
+
 watch(
   () => route.params.alpha3Code,
-  () => {
-    fetchCountryDetails();
-  },
-  { immediate: true });
+  fetchCountryDetails,
+  { immediate: true }
+);
 </script>

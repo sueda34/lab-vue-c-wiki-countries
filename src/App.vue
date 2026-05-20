@@ -24,14 +24,36 @@ const countries = ref([]);
 onMounted(async () => {
   try {
     const response = await fetch("/countries.json");
+    if (!response.ok) {
+      throw new Error(`Local countries.json returned ${response.status}`);
+    }
+
     const data = await response.json();
-    
-    // Alphabetisch sortieren
-    data.sort((a, b) => a.name.common.localeCompare(b.name.common));
-    
+    data.sort((a, b) => {
+      const nameA = a.name?.common || "";
+      const nameB = b.name?.common || "";
+      return nameA.localeCompare(nameB);
+    });
     countries.value = data;
   } catch (error) {
-    console.error("Fehler beim Laden der Länderliste:", error);
+    console.warn("Lokale Daten konnten nicht geladen werden, versuche Live-API...", error);
+
+    try {
+      const response = await fetch("https://ih-countries-api.herokuapp.com/countries");
+      if (response.ok) {
+        const data = await response.json();
+        data.sort((a, b) => {
+          const nameA = a.name?.common || "";
+          const nameB = b.name?.common || "";
+          return nameA.localeCompare(nameB);
+        });
+        countries.value = data;
+      } else {
+        throw new Error(`API returned ${response.status}`);
+      }
+    } catch (remoteError) {
+      console.error("Fehler beim Laden der Länderliste aus der API:", remoteError);
+    }
   }
 });
 </script>
