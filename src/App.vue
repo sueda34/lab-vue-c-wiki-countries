@@ -20,10 +20,11 @@ import NavBar from './components/NavBar.vue';
 import CountriesList from './components/CountriesList.vue';
 
 const countries = ref([]);
+const baseUrl = import.meta.env.BASE_URL;
 
 onMounted(async () => {
   try {
-    const response = await fetch("/countries.json");
+    const response = await fetch(`${baseUrl}countries.json`);
     if (!response.ok) {
       throw new Error(`Local countries.json returned ${response.status}`);
     }

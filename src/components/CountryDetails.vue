@@ -48,6 +48,7 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 const country = ref(null);
 const loadedCountries = ref([]);
+const baseUrl = import.meta.env.BASE_URL;
 
 const loadLocalCountries = async () => {
   if (loadedCountries.value.length) {
@@ -55,7 +56,7 @@ const loadLocalCountries = async () => {
   }
 
   try {
-    const response = await fetch('/countries.json');
+    const response = await fetch(`${baseUrl}countries.json`);
     if (!response.ok) {
       throw new Error(`Local countries.json returned ${response.status}`);
     }
